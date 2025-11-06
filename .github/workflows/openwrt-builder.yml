@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       custom_config:
-        description: '使用自定义config文件(只有在配置文件不是.config时启用)'
+        description: 's20p.config'
         required: true
         default: 'no'
         type: choice
@@ -25,9 +25,9 @@ on:
           - 'yes'
           - 'no'
       config_file_name:
-        description: 'config文件名'
+        description: 's20p.config'
         required: true
-        default: '.config'
+        default: 's20p.config'
 
 env:
   UPLOAD_FIRMWARE: true
