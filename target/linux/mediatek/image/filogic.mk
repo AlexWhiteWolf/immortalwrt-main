@@ -629,7 +629,7 @@ define Device/cmcc_rax3000m_common
   IMAGE/sysupgrade.itb := append-kernel | \
 	fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-static-with-rootfs | \
 	pad-rootfs | append-metadata
-  ARTIFACTS := emmc-gpt.bin emmc-preloader.bin emmc-bl31-uboot.fip
+  ARTIFACTS := emmc-gpt.bin
   ARTIFACT/emmc-gpt.bin := mt798x-gpt emmc
 endef
 
@@ -638,7 +638,8 @@ define Device/cmcc_rax3000m
   DEVICE_MODEL := RAX3000M
   DEVICE_DTS := mt7981b-cmcc-rax3000m
   $(call Device/cmcc_rax3000m_common)
-  ARTIFACTS += nand-preloader.bin nand-bl31-uboot.fip
+  ARTIFACTS += emmc-preloader.bin emmc-bl31-uboot.fip \
+	nand-preloader.bin nand-bl31-uboot.fip
   ARTIFACT/emmc-preloader.bin := mt7981-bl2 emmc-ddr4
   ARTIFACT/emmc-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000m-emmc
   ARTIFACT/nand-preloader.bin := mt7981-bl2 spim-nand-ddr4
@@ -652,14 +653,18 @@ define Device/cmcc_rax3000me
   DEVICE_DTS := mt7981b-cmcc-rax3000me
   $(call Device/cmcc_rax3000m_common)
   DEVICE_DTS_OVERLAY += mt7981b-cmcc-rax3000me-nousb
-  ARTIFACTS += nand-ddr3-preloader.bin nand-ddr4-preloader.bin \
-	nand-usb-bl31-uboot.fip nand-nousb-bl31-uboot.fip
-  ARTIFACT/emmc-preloader.bin := mt7981-bl2 emmc-ddr3
-  ARTIFACT/emmc-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-emmc
-  ARTIFACT/nand-ddr3-preloader.bin := mt7981-bl2 spim-nand-ddr3
+  ARTIFACTS += emmc-ddr3-preloader.bin emmc-ddr3-bl31-uboot.fip \
+	emmc-ddr4-preloader.bin emmc-ddr4-bl31-uboot.fip \
+	nand-ddr3-preloader.bin nand-ddr3-bl31-uboot.fip \
+	nand-ddr4-preloader.bin nand-ddr4-bl31-uboot.fip
+  ARTIFACT/emmc-ddr3-preloader.bin := mt7981-bl2 emmc-ddr3-1866mhz
+  ARTIFACT/emmc-ddr3-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-emmc-ddr3
+  ARTIFACT/emmc-ddr4-preloader.bin := mt7981-bl2 emmc-ddr4
+  ARTIFACT/emmc-ddr4-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-emmc-ddr4
+  ARTIFACT/nand-ddr3-preloader.bin := mt7981-bl2 spim-nand-ddr3-1866mhz
+  ARTIFACT/nand-ddr3-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-nand-ddr3
   ARTIFACT/nand-ddr4-preloader.bin := mt7981-bl2 spim-nand-ddr4
-  ARTIFACT/nand-usb-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-nand-usb
-  ARTIFACT/nand-nousb-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-nand-nousb
+  ARTIFACT/nand-ddr4-bl31-uboot.fip := mt7981-bl31-uboot cmcc_rax3000me-nand-ddr4
 endef
 TARGET_DEVICES += cmcc_rax3000me
 
@@ -921,7 +926,10 @@ define Device/dlink_aquila-pro-ai-m30-a1
   IMAGES += recovery.bin
   IMAGE_SIZE := 51200k
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
-  IMAGE/recovery.bin := sysupgrade-tar | pad-to $$(IMAGE_SIZE) | dlink-ai-recovery-header DLK6E6110001 \x6A\x28\xEE\x0B \x00\x00\x2C\x00 \x00\x00\x20\x03 \x61\x6E
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+  IMAGE/recovery.bin := append-image-stage initramfs-kernel.bin | sysupgrade-tar kernel=$$$$@ |\
+    pad-to $$(IMAGE_SIZE) | dlink-ai-recovery-header DLK6E6110001 \x6A\x28\xEE\x0B \x00\x00\x2C\x00 \x00\x00\x20\x03 \x61\x6E
+endif
 endef
 TARGET_DEVICES += dlink_aquila-pro-ai-m30-a1
 
@@ -935,7 +943,10 @@ define Device/dlink_aquila-pro-ai-m60-a1
   IMAGES += recovery.bin
   IMAGE_SIZE := 51200k
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
-  IMAGE/recovery.bin := sysupgrade-tar | pad-to $$(IMAGE_SIZE) | dlink-ai-recovery-header DLK6E8202001 \x30\x6C\x19\x0C \x00\x00\x2C\x00 \x00\x00\x20\x03 \x82\x6E
+ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
+  IMAGE/recovery.bin := append-image-stage initramfs-kernel.bin | sysupgrade-tar kernel=$$$$@ |\
+    pad-to $$(IMAGE_SIZE) | dlink-ai-recovery-header DLK6E8202001 \x30\x6C\x19\x0C \x00\x00\x2C\x00 \x00\x00\x20\x03 \x82\x6E
+endif
 endef
 TARGET_DEVICES += dlink_aquila-pro-ai-m60-a1
 
@@ -1159,13 +1170,53 @@ define Device/imou_lc-hx3001
 endef
 TARGET_DEVICES += imou_lc-hx3001
 
+define Device/huasifei_wh3000-pro
+  DEVICE_VENDOR := Huasifei
+  DEVICE_MODEL := WH3000 Pro
+  DEVICE_DTS := mt7981b-huasifei-wh3000-pro
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware kmod-hwmon-pwmfan kmod-usb3 f2fsck mkf2fs
+  KERNEL := kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS := kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += huasifei_wh3000-pro
+
+define Device/iptime_ax3000q
+  DEVICE_VENDOR := ipTIME
+  DEVICE_MODEL := AX3000Q
+  DEVICE_DTS := mt7981b-iptime-ax3000q
+  DEVICE_DTS_DIR := ../dts
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 32768k
+  KERNEL := kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS := kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+  IMAGES := factory.bin sysupgrade.bin
+  IMAGE/factory.bin := sysupgrade-tar | append-metadata | check-size | iptime-crc32 ax3000q
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
+  SUPPORTED_DEVICES += mediatek,mt7981-spim-snand-rfb
+endef
+TARGET_DEVICES += iptime_ax3000q
+
 define Device/iptime_ax3000sm
   DEVICE_VENDOR := ipTIME
   DEVICE_MODEL := AX3000SM
   DEVICE_DTS := mt7981b-iptime-ax3000sm
   DEVICE_DTS_DIR := ../dts
-  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  IMAGE_SIZE := 32768k
+  KERNEL := kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS := kernel-bin | lzma | \
+	fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+  IMAGES := factory.bin sysupgrade.bin
+  IMAGE/factory.bin := sysupgrade-tar | append-metadata | check-size | iptime-crc32 ax3ksm
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
   SUPPORTED_DEVICES += mediatek,mt7981-spim-snand-rfb
 endef
 TARGET_DEVICES += iptime_ax3000sm
@@ -1699,6 +1750,19 @@ define Device/openembed_som7981
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += openembed_som7981
+
+define Device/openfi_6c
+  DEVICE_VENDOR := OpenFi
+  DEVICE_MODEL := 6C
+  DEVICE_DTS := mt7981b-openfi-6c
+  DEVICE_DTS_DIR := ../dts
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware kmod-usb3 automount
+  KERNEL := kernel-bin | lzma | fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb
+  KERNEL_INITRAMFS := kernel-bin | lzma | \
+        fit lzma $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb with-initrd | pad-to 64k
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += openfi_6c
 
 define Device/openwrt_one
   DEVICE_VENDOR := OpenWrt
@@ -2585,3 +2649,30 @@ define Device/xiaomi_redmi-router-ax6000-mod
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
 endef
 TARGET_DEVICES += xiaomi_redmi-router-ax6000-mod
+
+define Device/qihoo_360t7-mod
+  DEVICE_VENDOR := Qihoo
+  DEVICE_MODEL := 360T7
+  DEVICE_VARIANT := (U-Boot mod)
+  DEVICE_DTS := mt7981b-qihoo-360t7-mod
+  DEVICE_DTS_DIR := ../dts
+  KERNEL_IN_UBI := 1
+  DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+endef
+TARGET_DEVICES += qihoo_360t7-mod
+
+define Device/zhao_7981r128-mod
+  DEVICE_VENDOR := Zhao
+  DEVICE_MODEL := 7981R128
+  DEVICE_VARIANT := (U-Boot mod)
+  DEVICE_DTS := mt7981b-zhao-7981
+  DEVICE_DTS_DIR := ../dts
+  UBINIZE_OPTS := -E 5
+  BLOCKSIZE := 128k
+  PAGESIZE := 2048
+  KERNEL_IN_UBI := 1
+  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
+  DEVICE_PACKAGES := kmod-mt7915e kmod-usb3 kmod-mt7981-firmware mt7981-wo-firmware kmod-i2c-gpio kmod-sfp
+endef
+TARGET_DEVICES += zhao_7981r128-mod
