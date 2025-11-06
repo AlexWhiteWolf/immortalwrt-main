@@ -57,7 +57,6 @@ jobs:
         echo "硬盘数量: $(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
         
     - name: Install LLVM 15 
-        run: |
           wget https://apt.llvm.org/llvm.sh  
           chmod +x llvm.sh 
           ./llvm.sh  15
